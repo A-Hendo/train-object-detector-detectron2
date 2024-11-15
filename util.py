@@ -1,17 +1,25 @@
 import os
 
-from detectron2.engine import DefaultTrainer
-from detectron2.data import MetadataCatalog, DatasetCatalog
-from detectron2.structures import BoxMode
-from detectron2.config import get_cfg as _get_cfg
+import cv2
 from detectron2 import model_zoo
+from detectron2.config import get_cfg as _get_cfg
+from detectron2.data import DatasetCatalog, MetadataCatalog
+from detectron2.engine import DefaultTrainer
+from detectron2.structures import BoxMode
 
 from loss import ValidationLoss
 
-import cv2
 
-
-def get_cfg(output_dir, learning_rate, batch_size, iterations, checkpoint_period, model, device, nmr_classes):
+def get_cfg(
+    output_dir,
+    learning_rate,
+    batch_size,
+    iterations,
+    checkpoint_period,
+    model,
+    device,
+    nmr_classes,
+):
     """
     Create a Detectron2 configuration object and set its attributes.
 
@@ -39,8 +47,8 @@ def get_cfg(output_dir, learning_rate, batch_size, iterations, checkpoint_period
     cfg.DATASETS.TEST = ()
 
     # Set the device to use for training.
-    if device in ['cpu']:
-        cfg.MODEL.DEVICE = 'cpu'
+    if device in ["cpu"]:
+        cfg.MODEL.DEVICE = "cpu"
 
     # Set the number of data loader workers.
     cfg.DATALOADER.NUM_WORKERS = 2
@@ -104,7 +112,7 @@ def get_dicts(img_dir, ann_dir):
 
         record = {}
 
-        filename = os.path.join(img_dir, file[:-4] + '.jpg')
+        filename = os.path.join(img_dir, file[:-4] + ".png")
         height, width = cv2.imread(filename).shape[:2]
 
         record["file_name"] = filename
@@ -118,13 +126,15 @@ def get_dicts(img_dir, ann_dir):
 
         for _, line in enumerate(lines):
             if len(line) > 2:
-                label, cx, cy, w_, h_ = line.split(' ')
+                label, cx, cy, w_, h_ = line.split(" ")
 
                 obj = {
-                    "bbox": [int((float(cx) - (float(w_) / 2)) * width),
-                             int((float(cy) - (float(h_) / 2)) * height),
-                             int(float(w_) * width),
-                             int(float(h_) * height)],
+                    "bbox": [
+                        int((float(cx) - (float(w_) / 2)) * width),
+                        int((float(cy) - (float(h_) / 2)) * height),
+                        int(float(w_) * width),
+                        int(float(h_) * height),
+                    ],
                     "bbox_mode": BoxMode.XYWH_ABS,
                     "category_id": int(label),
                 }
@@ -147,21 +157,34 @@ def register_datasets(root_dir, class_list_file):
         int: The number of classes in the dataset.
     """
     # Read the list of class names from the class list file.
-    with open(class_list_file, 'r') as reader:
+    with open(class_list_file, "r") as reader:
         classes_ = [l[:-1] for l in reader.readlines()]
 
     # Register the train and validation datasets.
-    for d in ['train', 'val']:
-        DatasetCatalog.register(d, lambda d=d: get_dicts(os.path.join(root_dir, d, 'imgs'),
-                                                         os.path.join(root_dir, d, 'anns')))
+    for d in ["train", "val"]:
+        DatasetCatalog.register(
+            d,
+            lambda d=d: get_dicts(
+                os.path.join(root_dir, d, "imgs"), os.path.join(root_dir, d, "anns")
+            ),
+        )
         # Set the metadata for the dataset.
         MetadataCatalog.get(d).set(thing_classes=classes_)
 
     return len(classes_)
 
 
-def train(output_dir, data_dir, class_list_file, learning_rate, batch_size, iterations, checkpoint_period, device,
-          model):
+def train(
+    output_dir,
+    data_dir,
+    class_list_file,
+    learning_rate,
+    batch_size,
+    iterations,
+    checkpoint_period,
+    device,
+    model,
+):
     """
     Train a Detectron2 model on a custom dataset.
 
@@ -184,7 +207,16 @@ def train(output_dir, data_dir, class_list_file, learning_rate, batch_size, iter
     nmr_classes = register_datasets(data_dir, class_list_file)
 
     # Get the configuration for the model
-    cfg = get_cfg(output_dir, learning_rate, batch_size, iterations, checkpoint_period, model, device, nmr_classes)
+    cfg = get_cfg(
+        output_dir,
+        learning_rate,
+        batch_size,
+        iterations,
+        checkpoint_period,
+        model,
+        device,
+        nmr_classes,
+    )
 
     # Create the output directory
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
